@@ -109,23 +109,22 @@ st.markdown("""
 # ── Load models ────────────────────────────────────────────────────────────────
 @st.cache_resource
 def load_artifacts():
+    import os
     rf = pickle.load(open("rf_model.pkl", "rb"))
-    lstm_model = lstm_scaler = cnn_model = cnn_scaler = None
+    lstm_sess = lstm_scaler = cnn_sess = cnn_scaler = None
     try:
-        import tensorflow as tf
-        from tensorflow.keras.models import load_model
-        import os
-        if os.path.exists("lstm_model.h5"):
-            lstm_model = load_model("lstm_model.h5")
+        import onnxruntime as ort
+        if os.path.exists("lstm_model.onnx"):
+            lstm_sess = ort.InferenceSession("lstm_model.onnx")
             with open("lstm_scaler.pkl", "rb") as f:
                 lstm_scaler = pickle.load(f)
-        if os.path.exists("cnn_model.h5"):
-            cnn_model = load_model("cnn_model.h5")
+        if os.path.exists("cnn_model.onnx"):
+            cnn_sess = ort.InferenceSession("cnn_model.onnx")
             with open("cnn_scaler.pkl", "rb") as f:
                 cnn_scaler = pickle.load(f)
     except Exception:
         pass
-    return rf, lstm_model, lstm_scaler, cnn_model, cnn_scaler
+    return rf, lstm_sess, lstm_scaler, cnn_sess, cnn_scaler
 
 rf_model, lstm_model, lstm_scaler, cnn_model, cnn_scaler = load_artifacts()
 
@@ -235,14 +234,18 @@ with tab1:
         if lstm_model and lstm_scaler:
             x = encode_dl(Age, RestingBP, Cholesterol, FastingBS, MaxHR, Oldpeak,
                           ExerciseAngina, gender, ChestPainType, RestingECG, ST_Slope, lstm_scaler)
-            lstm_pred = int(lstm_model.predict(x.reshape(1, 1, x.shape[1]), verbose=0)[0][0] >= 0.5)
+            inp_name = lstm_model.get_inputs()[0].name
+            prob = lstm_model.run(None, {inp_name: x.reshape(1, 1, x.shape[1])})[0][0][0]
+            lstm_pred = int(prob >= 0.5)
 
         # CNN
         cnn_pred = None
         if cnn_model and cnn_scaler:
             x = encode_dl(Age, RestingBP, Cholesterol, FastingBS, MaxHR, Oldpeak,
                           ExerciseAngina, gender, ChestPainType, RestingECG, ST_Slope, cnn_scaler)
-            cnn_pred = int(cnn_model.predict(x.reshape(1, x.shape[1], 1), verbose=0)[0][0] >= 0.5)
+            inp_name = cnn_model.get_inputs()[0].name
+            prob = cnn_model.run(None, {inp_name: x.reshape(1, x.shape[1], 1)})[0][0][0]
+            cnn_pred = int(prob >= 0.5)
 
         col_rf, col_lstm, col_cnn = st.columns(3)
         with col_rf:

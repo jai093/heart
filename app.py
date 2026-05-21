@@ -260,7 +260,7 @@ with tab1:
         votes = [p for p in [rf_pred, lstm_pred, cnn_pred] if p is not None]
         majority = int(sum(votes) > len(votes) / 2)
         cls = "ensemble-high" if majority == 1 else "ensemble-low"
-        icon = "⚠️ High Risk of Heart Attack" if majority == 1 else "✅ Low Risk of Heart Attack"
+        icon = "⚠️ High Risk 1 of Heart Attack" if majority == 1 else "✅ Low Risk 0 of Heart Attack"
         st.markdown(f'<div class="{cls}">Ensemble Verdict &nbsp;|&nbsp; {icon}</div>',
                     unsafe_allow_html=True)
 
